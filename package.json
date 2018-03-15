@@ -1,0 +1,16 @@
+{
+  "name": "remoku",
+  "version": "1.0.0",
+  "description": "Remote Control app for Roku Devices",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "author": "Bryan Brunetti",
+  "license": "ISC",
+  "devDependencies": {
+    "electron": "^1.8.3",
+    "node-ssdp": "3.2.5",
+    "xml2js": "0.4.19"
+  }
+}
