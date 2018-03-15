@@ -1,18 +1,32 @@
-<!doctype html>
 <html>
 	<head>
-    <script>require("./index.js")</script>
-		<meta charset="utf-8">
-		<title>Remoku</title>
+		<title>Remokontrol</title>
 		<link rel="stylesheet" href="index.css">
 	</head>
-	<body class="draggable" style="background-color: black">
-		<div class="container">
-			<section class="main">
-				<select id="device_list">
-				</select>
-				<!-- <img src="assets/RokuRemote.png" width="230" height="800" /> -->
-			</section>
+<body>
+    <div id="overlay">
+        <div id="overlay_message">Looking for a Roku device ...</div>
     </div>
-	</body>
+	<select id="device_list"></select>
+<img src="assets/RemoteNormalSize.png" usemap="#remote" class="draggable">
+
+<map name="remote" id="buttons">
+    <area alt="Back" title="Back" href="#Back" coords="30,82,104,119" shape="rect">
+    <area alt="Home" title="Home" href="#Home" coords="124,86,195,117" shape="rect">
+    <area alt="Up" title="Up" href="#Up" coords="87,143,141,187" shape="rect">
+    <area alt="Right" title="Right" href="#Right" coords="136,191,181,235" shape="rect">
+    <area alt="Left" title="Left" href="#Left" coords="49,187,95,230" shape="rect">
+    <area alt="Down" title="Down" href="#Down" coords="91,235,137,275" shape="rect">
+    <area alt="InstantReplay" title="InstantReplay" href="#InstantReplay" coords="28,300,79,341" shape="rect">
+    <area alt="Select" title="Select" href="#Select" coords="114,321,30" shape="circle">
+    <area alt="Info" title="Info" href="#Info" coords="148,302,202,343" shape="rect">
+    <area alt="Rev" title="Rev" href="#Rev" coords="30,357,81,397" shape="rect">
+    <area alt="Fwd" title="Fwd" href="#Fwd" coords="151,356,202,399" shape="rect">
+    <area alt="Play" title="Play" href="#Play" coords="87,357,144,398" shape="rect">
+</map>
+
+<div id="channel-list"></div>
+
+<script>require("./index.js")</script>
+</body>
 </html>

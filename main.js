@@ -1,67 +1,136 @@
-const {app, BrowserWindow} = require('electron')
-const parseString = require('xml2js').parseString;
-
-const ssdp = require("./ssdp.js")
+const { app, BrowserWindow, ipcMain } = require('electron')
 const path = require('path')
 const url = require('url')
 
-  // Keep a global reference of the window object, if you don't, the window will
-  // be closed automatically when the JavaScript object is garbage collected.
-  let win
+const roku = require('./roku.js')
+const Store = require('electron-store');
 
-  function createWindow () {
-    // Create the browser window.
-    win = new BrowserWindow({width: 800, height: 600})
+const store = new Store({defaults: {device_list: {}}})
 
-    // and load the index.html of the app.
-    win.loadURL(url.format({
-      pathname: path.join(__dirname, 'index.html'),
-      protocol: 'file:',
-      slashes: true
-    }))
+let win
 
-    ssdp.searchForDevices()
+app.on('ready', () => {
+  win = new BrowserWindow({
+    width: 235,
+    height: 830,
+    resizable: false,
+    fullscreenable: false,
+    frame: false,
+    transparent: true
+  })
+  win.loadURL(`file://${__dirname}/index.html`)
 
-    // Open the DevTools.
-    win.webContents.openDevTools()
+  win.webContents.on('did-finish-load', function(event, arg) {
+    roku.findDevices()
+    loadDevices()
+    loadChannels()
+  })
 
-    // Emitted when the window is closed.
-    win.on('closed', () => {
-      // Dereference the window object, usually you would store windows
-      // in an array if your app supports multi windows, this is the time
-      // when you should delete the corresponding element.
-      win = null
+  win.webContents.on("before-input-event", function(e, input) {
+   let mapped_keys = ["ArrowUp", "ArrowDown", "ArrowRight", "ArrowLeft", "Escape", "Enter", "Backspace"]
+   let ignored_keys = ["Shift", "Control", "Alt", "Meta"]
+    if(ignored_keys.includes(input["key"])) {
+      // console.log('should ignore input')
+    } else if(mapped_keys.includes(input["key"])) {
+    let key
+    switch(input["key"]) {
+      case 'Escape':
+        key = "Back"
+      case 'ArrowUp':
+        key = "Up"
+      case 'ArrowLeft':
+        key = "Left"
+      case 'ArrowRight':
+        key = "Right"
+      case 'ArrowDown':
+        key = "Down"
+      case 'Enter':
+        key = "Select"
+      case 'Backspace':
+        key = "Backspace"
+    }
+    selectedRokuAddress().then((result) => {
+      if(result) {
+        roku.apiCall(result, input["type"].toLowerCase() + "/" + key)
+      }
     })
-  }
-
-  // This method will be called when Electron has finished
-  // initialization and is ready to create browser windows.
-  // Some APIs can only be used after this event occurs.
-  app.on('ready', createWindow)
-
-  // Quit when all windows are closed.
-  app.on('window-all-closed', () => {
-    // On macOS it is common for applications and their menu bar
-    // to stay active until the user quits explicitly with Cmd + Q
-    if (process.platform !== 'darwin') {
-      app.quit()
-    }
+   } else if(input["type"] == "keyUp" || input["type"] == "keyDown") {
+    selectedRokuAddress().then((result) => {
+      if(result) {
+        roku.apiCall(result, input["type"].toLowerCase() + "/Lit_" + encodeURIComponent(input["key"]))
+      }
+    })
+   }
   })
 
-  app.on('activate', () => {
-    // On macOS it's common to re-create a window in the app when the
-    // dock icon is clicked and there are no other windows open.
-    if (win === null) {
-      createWindow()
+  // win.webContents.openDevTools()
+})
+
+
+function selectedRokuAddress(callback) {
+  let result = win.webContents.executeJavaScript('document.getElementById("device_list").value')
+  if(typeof callback === 'function') {
+    callback(result)
+  } else {
+    return result
+  }
+}
+
+function loadDevices() {
+  let devices = store.get("device-list", {})
+  for(var usn in devices) {
+    win.webContents.send("add_device", devices[usn])
+  }
+}
+
+function addDevice(device) {
+  let devices = store.get("device-list", {})
+  if(devices[device["usn"]] === undefined) {
+    devices[device["usn"]] = {name: device["name"], location: device["location"]}
+    store.set("device-list", devices)
+    return true
+  } else {
+    return false
+  }
+}
+
+function loadChannels() {
+  selectedRokuAddress().then((url) => {
+    let apps = roku.apiCall(url, "query/apps", function(result) {
+      if(result) {
+        for(let app in result["apps"]["app"]) {
+          win.webContents.send("add_channel", result["apps"]["app"][app])
+        }
+      }
+    })
+  })
+}
+
+exports.updateDevice = (location) => {
+  roku.apiCall(location, "query/device-info", function(details){
+    if(details) {
+      var details = details["device-info"]
+      let device = { usn: details["udn"][0], name: details["user-device-name"], location: location }
+  
+      if(addDevice(device)) { win.webContents.send("add_device", device) }
+    } else {
+      win.webContents.send("remove_device", location)
     }
   })
+}
 
-  exports.deviceList = () => {
-    console.log("ahoy a device list")
-  }
+// Quit when all windows are closed.
+app.on('window-all-closed', () => { app.quit() })
 
-  exports.parseXML = (xml) => {
-    parseString(xml, function (err, result) {
-      console.dir(result);
-    });
-  }
+ipcMain.on("api-call", (event, url, command) => {
+  console.log("got an api call for: ", url, command)
+  roku.apiCall(url, command)
+})
+
+ipcMain.on("launch-channel", (event, id) => {
+  selectedRokuAddress().then((url) => {
+    roku.apiCall(url, "launch/" + id)
+  })
+})
+
+ipcMain.on("reload-channels", () => { loadChannels() })
